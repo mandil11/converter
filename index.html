@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>SM SCALP VIP — Signal Generator (Offline)</title>
+  <style>
+    :root{
+      --bg:#0f1113; --panel:#15171a; --muted:#9aa4b2; --accent:#ffd166; --glass:rgba(255,255,255,0.03);
+      --success:#2ecc71; --danger:#ff6b6b; --card-radius:14px;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;background:linear-gradient(180deg,#0b0c0d, #0f1113);color:#e6eef6;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:28px}
+    .wrap{display:grid;grid-template-columns:380px 1fr;gap:20px;width:100%;max-width:1100px}
+    .card{background:var(--panel);border-radius:var(--card-radius);padding:18px;box-shadow:0 6px 20px rgba(2,6,10,0.6)}
+    h1{margin:0 0 10px;font-size:18px;color:var(--accent)}
+    label{display:block;font-size:13px;color:var(--muted);margin-top:12px}
+    input[type=text], textarea, select{width:100%;padding:10px;border-radius:10px;border:1px solid rgba(255,255,255,0.04);background:var(--glass);color:inherit;font-size:14px}
+    .small{font-size:12px;color:var(--muted)}
+    .row{display:flex;gap:10px}
+    .row > *{flex:1}
+    .btn{display:inline-block;padding:8px 12px;border-radius:10px;background:linear-gradient(180deg,#202428,#14171a);border:1px solid rgba(255,255,255,0.03);cursor:pointer;color:var(--accent);font-weight:600}
+    .outline{background:transparent;border:1px solid rgba(255,255,255,0.06);color:var(--muted)}
+    .preview{white-space:pre-wrap;font-family:monospace;background:linear-gradient(180deg,rgba(255,255,255,0.01),transparent);padding:16px;border-radius:10px;border:1px solid rgba(255,255,255,0.02);min-height:220px}
+    .controls{display:flex;gap:8px;margin-top:12px}
+    .tp-list{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+    .tp-item{background:rgba(255,255,255,0.03);padding:6px 8px;border-radius:8px;font-size:13px}
+    .footer{font-size:12px;color:var(--muted);margin-top:10px}
+    .danger{color:var(--danger)}
+    .success{color:var(--success)}
+    @media (max-width:900px){.wrap{grid-template-columns:1fr;}}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <h1>SM SCALP VIP — Signal Generator</h1>
+      <div class="small">Quick offline editor — change coin, stop loss, take profits etc and copy the formatted message.</div>
+
+      <label>COIN / PAIR</label>
+      <input id="coin" type="text" value="COMMON/USDT (SCALP)" />
+
+      <div class="row">
+        <div>
+          <label>TYPE</label>
+          <select id="type">
+            <option>SCALP</option>
+            <option>SWING</option>
+            <option>LONG</option>
+            <option>SHORT</option>
+          </select>
+        </div>
+        <div>
+          <label>POSITION</label>
+          <select id="position">
+            <option>SHORT</option>
+            <option>LONG</option>
+            <option>BOTH</option>
+          </select>
+        </div>
+      </div>
+
+      <label>ENTRY</label>
+      <input id="entry" type="text" value="Now ( MARKET )" />
+
+      <div class="row">
+        <div>
+          <label>AMOUNT</label>
+          <input id="amount" type="text" value="2%" />
+        </div>
+        <div>
+          <label>LEVERAGE</label>
+          <input id="leverage" type="text" value="20x - 50x" />
+        </div>
+      </div>
+
+      <label>TAKE PROFITS (comma separated)</label>
+      <input id="tps" type="text" value="35%,45%,55%,100%" />
+      <div class="tp-list small" id="tpPreview"></div>
+
+      <label>STOP LOSS</label>
+      <input id="sl" type="text" value="(set your SL here)" />
+
+      <label>NOTES / EXTRA</label>
+      <input id="notes" type="text" value="PLEASE USE LOW MARGIN AND LOW LEVERAGE ✋❗" />
+
+      <div class="controls">
+        <button class="btn" id="updateBtn">Update Preview</button>
+        <button class="btn outline" id="copyBtn">Copy to Clipboard</button>
+        <button class="btn outline" id="downloadBtn">Download .txt</button>
+      </div>
+
+      <div class="footer">Tip: change fields and click <strong>Update Preview</strong> — then copy or download the message for posting.</div>
+    </div>
+
+    <div class="card">
+      <h1>Preview</h1>
+      <div class="preview" id="previewArea"></div>
+
+      <div style="display:flex;gap:8px;margin-top:12px;align-items:center">
+        <button class="btn" id="copyPreview">Copy Preview</button>
+        <button class="btn" id="resetBtn">Reset Example</button>
+        <div style="flex:1"></div>
+        <div class="small">Offline — works without internet</div>
+      </div>
+    </div>
+  </div>
+
+<script>
+  const coin = document.getElementById('coin');
+  const type = document.getElementById('type');
+  const position = document.getElementById('position');
+  const entry = document.getElementById('entry');
+  const amount = document.getElementById('amount');
+  const leverage = document.getElementById('leverage');
+  const tps = document.getElementById('tps');
+  const sl = document.getElementById('sl');
+  const notes = document.getElementById('notes');
+  const previewArea = document.getElementById('previewArea');
+  const tpPreview = document.getElementById('tpPreview');
+
+  function formatMessage(){
+    const tpList = tps.value.split(',').map(s=>s.trim()).filter(Boolean);
+    // update small TP preview
+    tpPreview.innerHTML = tpList.map(v=>`<div class="tp-item">${v}</div>`).join('');
+
+    const lines = [];
+    lines.push(`${coin.value}`);
+    lines.push('');
+    lines.push(`Entry : ${entry.value}`);
+    lines.push('');
+    lines.push(`AMOUNT : ${amount.value}`);
+    lines.push('');
+    lines.push(`${position.value} POSITION ( ${leverage.value} )`);
+    lines.push('');
+    lines.push('TAKE PROFITS');
+    tpList.forEach(p=>lines.push(p));
+    lines.push('HOLD TO MOON 🚀');
+    lines.push('');
+    lines.push(`STOP LOSS : ${sl.value}`);
+    lines.push('');
+    lines.push(`${notes.value}`);
+    return lines.join('\n');
+  }
+
+  function update(){
+    previewArea.textContent = formatMessage();
+  }
+
+  document.getElementById('updateBtn').addEventListener('click',update);
+  document.getElementById('copyBtn').addEventListener('click',async ()=>{
+    try{
+      await navigator.clipboard.writeText(formatMessage());
+      alert('Copied!');
+    }catch(e){
+      alert('Failed to copy. Use manual select + Ctrl+C');
+    }
+  });
+  document.getElementById('copyPreview').addEventListener('click',async ()=>{
+    try{await navigator.clipboard.writeText(previewArea.textContent);alert('Copied!')}catch(e){alert('Copy failed')}
+  });
+
+  document.getElementById('downloadBtn').addEventListener('click',()=>{
+    const blob = new Blob([formatMessage()],{type:'text/plain'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `${coin.value.replace(/\s|\//g,'_') || 'signal'}.txt`;
+    document.body.appendChild(a); a.click(); a.remove();
+  });
+
+  document.getElementById('resetBtn').addEventListener('click',()=>{
+    coin.value = 'COMMON/USDT (SCALP)'; entry.value='Now ( MARKET )'; amount.value='2%'; leverage.value='20x - 50x'; tps.value='35%,45%,55%,100%'; sl.value='(set your SL here)'; notes.value='PLEASE USE LOW MARGIN AND LOW LEVERAGE ✋❗'; update();
+  });
+
+  // Live preview update while typing (debounced)
+  let timer;
+  [coin,entry,amount,leverage,tps,sl,notes,position,type].forEach(el=>{
+    el.addEventListener('input',()=>{ clearTimeout(timer); timer=setTimeout(update,250); });
+  });
+
+  // initial
+  update();
+</script>
+</body>
+</html>
